@@ -60,7 +60,7 @@ public class DailyWeatherReport {
     private String formattedDate;
     private String weatherDesc;
 
-    public DailyWeatherReport(String cityName, String country, int currentTemp, int maxTemp, int minTemp, String weather, String weatherDesc, String rawDate) {
+    public DailyWeatherReport(String cityName, String country, int currentTemp, int maxTemp, int minTemp, String weather, String weatherDesc, Date rawDate) {
         this.cityName = cityName;
         this.country = country;
         this.currentTemp = currentTemp;
@@ -71,18 +71,10 @@ public class DailyWeatherReport {
         this.weatherDesc = weatherDesc;
     }
 
-    public String rawDateToFormatted(String raw){
-        Date date = new Date();
-        raw = raw.substring(5, 10);
-        try {
-            date = new SimpleDateFormat("MM-dd").parse(raw);
-        }catch(ParseException e){
-            Log.v("PARSE", e.toString());
-        }
+    public String rawDateToFormatted(Date date){
         String month = new SimpleDateFormat("MMMM").format(date);
         String day = new SimpleDateFormat("dd").format(date);
         Log.v("DATE", date.toString());
-        Log.v("RAW", raw);
         return month + " " + day;
     }
 }

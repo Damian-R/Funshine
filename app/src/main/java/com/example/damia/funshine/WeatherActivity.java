@@ -41,11 +41,12 @@ import java.util.Date;
 
 public class WeatherActivity extends AppCompatActivity implements GoogleApiClient.ConnectionCallbacks, GoogleApiClient.OnConnectionFailedListener, LocationListener{
 
-    final String URL_BASE_FIVEDAY = "http://api.openweathermap.org/data/2.5/forecast";
+    final String URL_BASE_FIVEDAY = "http://api.openweathermap.org/data/2.5/forecast/daily";
     final String URL_BASE_CURRENT = "http://api.openweathermap.org/data/2.5/weather";
     final String URL_COORD = "?lat="; //"?lat=33.6691148&lon=72.9149377";
     final String URL_UNIT = "&units=metric";
     final String URL_API = "&APPID=d5530f3630141aa3166965d97fe73c46";
+    final String URL_COUNT = "&cnt=6";
 
     private final int PERMISSION_LOCATION = 123;
 
@@ -121,7 +122,7 @@ public class WeatherActivity extends AppCompatActivity implements GoogleApiClien
                     String country = sys.getString("country");
 
                     Log.v("CURRENT", city + " " + country);
-                    DailyWeatherReport currentReport = new DailyWeatherReport(city, country, currentTemp.intValue(), 0, minTemp.intValue(), weatherType, weatherDesc, new Date().toString());
+                    DailyWeatherReport currentReport = new DailyWeatherReport(city, country, currentTemp.intValue(), 0, minTemp.intValue(), weatherType, weatherDesc, new Date());
 
                     updateCurrentUI(currentReport);
 
@@ -141,7 +142,7 @@ public class WeatherActivity extends AppCompatActivity implements GoogleApiClien
 
     public void downloadFiveDayWeatherData(Location location){
         final String fullCords = URL_COORD + location.getLatitude() + "&lon=" + location.getLongitude();
-        final String url = URL_BASE_FIVEDAY + fullCords + URL_UNIT + URL_API;
+        final String url = URL_BASE_FIVEDAY + fullCords + URL_UNIT + URL_COUNT + URL_API;
         final JsonObjectRequest jsonObjectRequest = new JsonObjectRequest(Request.Method.GET, url, null, new Response.Listener<JSONObject>() {
             @Override
             public void onResponse(JSONObject response) {
@@ -150,21 +151,23 @@ public class WeatherActivity extends AppCompatActivity implements GoogleApiClien
                 try{
                     JSONArray list = response.getJSONArray("list");
                     // for loop to get weather data for next 5 days
-                    for(int i = 0; i < 5; i++){
-                        JSONObject obj = list.getJSONObject(i*8);
-                        JSONObject main = obj.getJSONObject("main");
-                        Double currentTemp = main.getDouble("temp");
-                        Double maxTemp = main.getDouble("temp_max");
-                        Double minTemp = main.getDouble("temp_min");
+                    for(int i = 1; i < 6; i++){
+                        JSONObject obj = list.getJSONObject(i);
+                        Date date = new Date((long)Integer.parseInt(obj.getString("dt"))*1000);
+                        Log.v("DATE2", date.toString());
+
+                        JSONObject temps = obj.getJSONObject("temp");
+                        Double maxTemp = temps.getDouble("max");
+                        Double minTemp = temps.getDouble("min");
+
+                        //Log.v("TEMP", maxTemp.toString());
 
                         JSONArray weatherArr = obj.getJSONArray("weather");
                         JSONObject weather = weatherArr.getJSONObject(0);
                         String weatherType = weather.getString("main");
                         String weatherDesc = weather.getString("description");
 
-                        String rawDate = obj.getString("dt_txt");
-
-                        DailyWeatherReport report = new DailyWeatherReport(null, null, currentTemp.intValue(), maxTemp.intValue(), minTemp.intValue(), weatherType, weatherDesc, rawDate);
+                        DailyWeatherReport report = new DailyWeatherReport(null, null, 0, maxTemp.intValue(), minTemp.intValue(), weatherType, weatherDesc, date);
 
                         weatherReportArrayList.add(report);
                     }
@@ -173,7 +176,6 @@ public class WeatherActivity extends AppCompatActivity implements GoogleApiClien
                     Log.v("JSON", exception.toString());
                 }
 
-                //updateUI();
                 adapter.notifyDataSetChanged();
 
             }
@@ -244,8 +246,8 @@ public class WeatherActivity extends AppCompatActivity implements GoogleApiClien
 
     @Override
     public void onLocationChanged(Location location) {
-        downloadFiveDayWeatherData(location);
         downloadCurrentWeatherData(location);
+        downloadFiveDayWeatherData(location);
     }
 
     public void startLocationServices(){
