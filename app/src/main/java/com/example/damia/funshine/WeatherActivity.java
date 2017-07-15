@@ -37,10 +37,12 @@ import org.json.JSONException;
 import org.json.JSONObject;
 
 import java.util.ArrayList;
+import java.util.Date;
 
 public class WeatherActivity extends AppCompatActivity implements GoogleApiClient.ConnectionCallbacks, GoogleApiClient.OnConnectionFailedListener, LocationListener{
 
-    final String URL_BASE = "http://api.openweathermap.org/data/2.5/forecast";
+    final String URL_BASE_FIVEDAY = "http://api.openweathermap.org/data/2.5/forecast";
+    final String URL_BASE_CURRENT = "http://api.openweathermap.org/data/2.5/weather";
     final String URL_COORD = "?lat="; //"?lat=33.6691148&lon=72.9149377";
     final String URL_UNIT = "&units=metric";
     final String URL_API = "&APPID=d5530f3630141aa3166965d97fe73c46";
@@ -91,23 +93,63 @@ public class WeatherActivity extends AppCompatActivity implements GoogleApiClien
 
     }
 
-    public void downloadWeatherData(Location location){
-
+    public void downloadCurrentWeatherData(Location location){
         final String fullCords = URL_COORD + location.getLatitude() + "&lon=" + location.getLongitude();
+        final String url = URL_BASE_CURRENT + fullCords + URL_UNIT + URL_API;
+        Log.v("CURRENT", url);
+        final JsonObjectRequest jsonObjectRequest = new JsonObjectRequest(Request.Method.GET, url, null, new Response.Listener<JSONObject>() {
+            @Override
+            public void onResponse(JSONObject response) {
+                Log.v("FUN", response.toString());
+                try {
+                    JSONArray weatherData = response.getJSONArray("weather");
+                    JSONObject weather = weatherData.getJSONObject(0);
+                    String weatherType = weather.getString("main");
+                    String weatherDesc = weather.getString("description");
+                    String weatherID = weather.getString("id");
 
-        final String url = URL_BASE + fullCords + URL_UNIT + URL_API;
+                    Log.v("CURRENT", weatherID);
+
+                    JSONObject main = response.getJSONObject("main");
+                    Double currentTemp = main.getDouble("temp");
+                    Double minTemp = main.getDouble("temp_min");
+
+                    Log.v("TEMPS", "current: " + currentTemp.toString() + " min: " + minTemp.toString());
+
+                    String city = response.getString("name");
+                    JSONObject sys = response.getJSONObject("sys");
+                    String country = sys.getString("country");
+
+                    Log.v("CURRENT", city + " " + country);
+                    DailyWeatherReport currentReport = new DailyWeatherReport(city, country, currentTemp.intValue(), 0, minTemp.intValue(), weatherType, weatherDesc, new Date().toString());
+
+                    updateCurrentUI(currentReport);
+
+                }catch (JSONException exception){
+                    Log.v("JSON", exception.getLocalizedMessage().toString());
+                }
+            }
+        }, new Response.ErrorListener() {
+            @Override
+            public void onErrorResponse(VolleyError error) {
+
+            }
+        });
+
+        Volley.newRequestQueue(this).add(jsonObjectRequest);
+    }
+
+    public void downloadFiveDayWeatherData(Location location){
+        final String fullCords = URL_COORD + location.getLatitude() + "&lon=" + location.getLongitude();
+        final String url = URL_BASE_FIVEDAY + fullCords + URL_UNIT + URL_API;
         final JsonObjectRequest jsonObjectRequest = new JsonObjectRequest(Request.Method.GET, url, null, new Response.Listener<JSONObject>() {
             @Override
             public void onResponse(JSONObject response) {
                 Log.v("FUN", "Res: " + response.toString());
 
                 try{
-                    JSONObject city = response.getJSONObject("city");
-                    String cityname = city.getString("name");
-                    String country = city.getString("country");
-
                     JSONArray list = response.getJSONArray("list");
-
+                    // for loop to get weather data for next 5 days
                     for(int i = 0; i < 5; i++){
                         JSONObject obj = list.getJSONObject(i*8);
                         JSONObject main = obj.getJSONObject("main");
@@ -122,20 +164,16 @@ public class WeatherActivity extends AppCompatActivity implements GoogleApiClien
 
                         String rawDate = obj.getString("dt_txt");
 
-                        DailyWeatherReport report = new DailyWeatherReport(cityname, country, currentTemp.intValue(), maxTemp.intValue(), minTemp.intValue(), weatherType, weatherDesc, rawDate);
-
-                        Log.v("JSON", "Printing from class: " + report.getCurrentTemp());
+                        DailyWeatherReport report = new DailyWeatherReport(null, null, currentTemp.intValue(), maxTemp.intValue(), minTemp.intValue(), weatherType, weatherDesc, rawDate);
 
                         weatherReportArrayList.add(report);
                     }
-
-                    Log.v("JSON", "city: " + cityname + " | country: " + country);
 
                 }catch(JSONException exception){
                     Log.v("JSON", exception.toString());
                 }
 
-                updateUI();
+                //updateUI();
                 adapter.notifyDataSetChanged();
 
             }
@@ -151,43 +189,38 @@ public class WeatherActivity extends AppCompatActivity implements GoogleApiClien
         Volley.newRequestQueue(this).add(jsonObjectRequest);
     }
 
-    public void updateUI(){
-        if(weatherReportArrayList.size() > 0){
-            DailyWeatherReport report = weatherReportArrayList.get(0);
+    public void updateCurrentUI(DailyWeatherReport report){
+        Log.v("FUN", report.getWeather());
+        Log.v("FUN", DailyWeatherReport.WEATHER_TYPE_RAIN);
+        switch (report.getWeather()){
+            case DailyWeatherReport.WEATHER_TYPE_CLOUDS:
+                weatherIcon.setImageDrawable(getResources().getDrawable(R.drawable.cloudy));
+                weatherIconMini.setImageDrawable(getResources().getDrawable(R.drawable.cloudy));
+                Log.v("FUN", "clouds called");
+                break;
 
-            Log.v("FUN", report.getWeather());
-            Log.v("FUN", DailyWeatherReport.WEATHER_TYPE_RAIN);
-            switch (report.getWeather()){
-                case DailyWeatherReport.WEATHER_TYPE_CLOUDS:
-                    weatherIcon.setImageDrawable(getResources().getDrawable(R.drawable.cloudy));
-                    weatherIconMini.setImageDrawable(getResources().getDrawable(R.drawable.cloudy));
-                    Log.v("FUN", "clouds called");
-                    break;
+            case DailyWeatherReport.WEATHER_TYPE_RAIN:
+                weatherIcon.setImageDrawable(getResources().getDrawable(R.drawable.rainy));
+                weatherIconMini.setImageDrawable(getResources().getDrawable(R.drawable.rainy));
+                Log.v("FUN", "rain called");
+                break;
 
-                case DailyWeatherReport.WEATHER_TYPE_RAIN:
-                    weatherIcon.setImageDrawable(getResources().getDrawable(R.drawable.rainy));
-                    weatherIconMini.setImageDrawable(getResources().getDrawable(R.drawable.rainy));
-                    Log.v("FUN", "rain called");
-                    break;
+            case DailyWeatherReport.WEATHER_TYPE_SNOW:
+                weatherIcon.setImageDrawable(getResources().getDrawable(R.drawable.snow));
+                weatherIconMini.setImageDrawable(getResources().getDrawable(R.drawable.snow));
+                Log.v("FUN", "snow called");
+                break;
 
-                case DailyWeatherReport.WEATHER_TYPE_SNOW:
-                    weatherIcon.setImageDrawable(getResources().getDrawable(R.drawable.snow));
-                    weatherIconMini.setImageDrawable(getResources().getDrawable(R.drawable.snow));
-                    Log.v("FUN", "snow called");
-                    break;
-
-                default:
-                    weatherIcon.setImageDrawable(getResources().getDrawable(R.drawable.sunny));
-                    weatherIconMini.setImageDrawable(getResources().getDrawable(R.drawable.sunny));
-                    Log.v("FUN", "clear called");
-            }
-            currentTemp.setText(Integer.toString(report.getCurrentTemp()) + "°");
-            lowTemp.setText(Integer.toString(report.getMinTemp()) + "°");
-            cityCountry.setText(report.getCityName() + ", " + report.getCountry());
-            weatherType.setText(report.getWeatherDesc());
-            weatherDate.setText("Today, " + report.getFormattedDate());
+            default:
+                weatherIcon.setImageDrawable(getResources().getDrawable(R.drawable.sunny));
+                weatherIconMini.setImageDrawable(getResources().getDrawable(R.drawable.sunny));
+                Log.v("FUN", "clear called");
         }
-
+        currentTemp.setText(Integer.toString(report.getCurrentTemp()) + "°");
+        lowTemp.setText(Integer.toString(report.getMinTemp()) + "°");
+        cityCountry.setText(report.getCityName() + ", " + report.getCountry());
+        weatherType.setText(report.getWeatherDesc());
+        weatherDate.setText("Today, " + report.getFormattedDate());
     }
 
     @Override
@@ -211,7 +244,8 @@ public class WeatherActivity extends AppCompatActivity implements GoogleApiClien
 
     @Override
     public void onLocationChanged(Location location) {
-        downloadWeatherData(location);
+        downloadFiveDayWeatherData(location);
+        downloadCurrentWeatherData(location);
     }
 
     public void startLocationServices(){
@@ -310,8 +344,6 @@ public class WeatherActivity extends AppCompatActivity implements GoogleApiClien
                     lweatherIcon.setImageDrawable(getResources().getDrawable(R.drawable.sunny_mini));
                     Log.v("FUN", "clear called");
             }
-
         }
-
     }
 }
