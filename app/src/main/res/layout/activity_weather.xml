@@ -6,7 +6,7 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:orientation="vertical"
-    tools:context="com.example.damia.funshine.WeatherActivity"
+    tools:context="com.example.damia.funshine.activities.WeatherActivity"
     android:background="#499EEC">
 
     <LinearLayout
@@ -48,7 +48,7 @@
         <TextView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="Today, May 1st"
+            android:text="Please Enable Location"
             android:textSize="25dp"
             android:layout_weight="1"
             android:textColor="#d6d6d6"
@@ -59,20 +59,24 @@
             android:layout_height="wrap_content"
             android:orientation="horizontal"
             android:gravity="bottom">
+
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:textSize="90dp"
                 android:text="78°"
                 android:textColor="#d6d6d6"
-                android:id="@+id/currrent_temp"/>
+                android:id="@+id/currrent_temp"
+                android:visibility="invisible" />
+
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:textSize="35dp"
                 android:text="64°"
                 android:textColor="#d6d6d6"
-                android:id="@+id/low_temp"/>
+                android:id="@+id/low_temp"
+                android:visibility="invisible" />
 
             <ImageView
                 android:layout_width="135dp"
@@ -80,7 +84,8 @@
                 android:src="@drawable/sunny"
                 android:layout_gravity="top"
                 android:id="@+id/weather_icon"
-                android:padding="10dp" />
+                android:padding="10dp"
+                android:visibility="invisible" />
         </LinearLayout>
 
 
@@ -102,7 +107,7 @@
             android:textAlignment="center"
             android:paddingLeft="25dp"
             android:id="@+id/city_country"
-            />
+            android:visibility="invisible" />
         <TextView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -113,7 +118,8 @@
             android:gravity="end"
             android:paddingLeft="7dp"
             android:textAlignment="center"
-            android:id="@+id/weather_type"/>
+            android:id="@+id/weather_type"
+            android:visibility="invisible" />
     </LinearLayout>
     
     <android.support.v7.widget.RecyclerView

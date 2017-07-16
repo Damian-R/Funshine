@@ -1,4 +1,4 @@
-package com.example.damia.funshine;
+package com.example.damia.funshine.activities;
 
 import android.*;
 import android.Manifest;
@@ -13,9 +13,7 @@ import android.os.Bundle;
 import android.support.v7.widget.LinearLayoutManager;
 import android.support.v7.widget.RecyclerView;
 import android.util.Log;
-import android.view.LayoutInflater;
 import android.view.View;
-import android.view.ViewGroup;
 import android.widget.ImageView;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -25,6 +23,8 @@ import com.android.volley.Response;
 import com.android.volley.VolleyError;
 import com.android.volley.toolbox.JsonObjectRequest;
 import com.android.volley.toolbox.Volley;
+import com.example.damia.funshine.R;
+import com.example.damia.funshine.adapters.WeatherAdapter;
 import com.example.damia.funshine.model.DailyWeatherReport;
 import com.google.android.gms.common.ConnectionResult;
 import com.google.android.gms.common.api.GoogleApiClient;
@@ -39,20 +39,28 @@ import org.json.JSONObject;
 import java.util.ArrayList;
 import java.util.Date;
 
+/**
+ * Created by Damian Reiter on 7/12/2017.
+ */
+
+
 public class WeatherActivity extends AppCompatActivity implements GoogleApiClient.ConnectionCallbacks, GoogleApiClient.OnConnectionFailedListener, LocationListener{
 
+    // URL constants
     final String URL_BASE_FIVEDAY = "http://api.openweathermap.org/data/2.5/forecast/daily";
     final String URL_BASE_CURRENT = "http://api.openweathermap.org/data/2.5/weather";
-    final String URL_COORD = "?lat="; //"?lat=33.6691148&lon=72.9149377";
+    final String URL_COORD = "?lat=";
     final String URL_UNIT = "&units=metric";
     final String URL_API = "&APPID=d5530f3630141aa3166965d97fe73c46";
     final String URL_COUNT = "&cnt=6";
 
+    // permission constant
     private final int PERMISSION_LOCATION = 123;
 
     private GoogleApiClient mGoogleApiClient;
     private ArrayList<DailyWeatherReport> weatherReportArrayList = new ArrayList<>();
 
+    // View initialization
     private ImageView weatherIcon;
     private ImageView weatherIconMini;
     private TextView weatherDate;
@@ -66,13 +74,15 @@ public class WeatherActivity extends AppCompatActivity implements GoogleApiClien
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        setContentView(R.layout.activity_weather);
+        setContentView(com.example.damia.funshine.R.layout.activity_weather);
 
+        //building the GoogleApiClient with LocationServices API
         mGoogleApiClient = new GoogleApiClient.Builder(this)
                 .addApi(LocationServices.API)
                 .enableAutoManage(this, this)
                 .addConnectionCallbacks(this)
                 .build();
+
 
         weatherIcon = (ImageView)findViewById(R.id.weather_icon);
         weatherIconMini = (ImageView)findViewById(R.id.weather_icon_mini);
@@ -82,8 +92,8 @@ public class WeatherActivity extends AppCompatActivity implements GoogleApiClien
         cityCountry = (TextView)findViewById(R.id.city_country);
         weatherType = (TextView)findViewById(R.id.weather_type);
 
+        //initializing adapter and recyclerView
         adapter = new WeatherAdapter(weatherReportArrayList);
-
         RecyclerView recyclerView = (RecyclerView)findViewById(R.id.content_weather_reports);
         recyclerView.setAdapter(adapter);
 
@@ -91,26 +101,26 @@ public class WeatherActivity extends AppCompatActivity implements GoogleApiClien
         recyclerView.setLayoutManager(layoutManager);
 
         weatherIcon.setImageDrawable(getResources().getDrawable(R.drawable.rainy));
-
     }
 
+    // Method to get current weather data from openweathermap weather API
     public void downloadCurrentWeatherData(Location location){
+        // build URL String using the current weather base URL
         final String fullCords = URL_COORD + location.getLatitude() + "&lon=" + location.getLongitude();
         final String url = URL_BASE_CURRENT + fullCords + URL_UNIT + URL_API;
         Log.v("CURRENT", url);
+
+        // create a GET JsonObjectRequest using Volley
         final JsonObjectRequest jsonObjectRequest = new JsonObjectRequest(Request.Method.GET, url, null, new Response.Listener<JSONObject>() {
             @Override
             public void onResponse(JSONObject response) {
                 Log.v("FUN", response.toString());
                 try {
+                    // get all relevant weather information from JSON objects created from the web request
                     JSONArray weatherData = response.getJSONArray("weather");
                     JSONObject weather = weatherData.getJSONObject(0);
                     String weatherType = weather.getString("main");
                     String weatherDesc = weather.getString("description");
-                    String weatherID = weather.getString("id");
-
-                    Log.v("CURRENT", weatherID);
-
                     JSONObject main = response.getJSONObject("main");
                     Double currentTemp = main.getDouble("temp");
                     Double minTemp = main.getDouble("temp_min");
@@ -122,8 +132,11 @@ public class WeatherActivity extends AppCompatActivity implements GoogleApiClien
                     String country = sys.getString("country");
 
                     Log.v("CURRENT", city + " " + country);
+
+                    // create new DailyWeatherReport for all current weather information
                     DailyWeatherReport currentReport = new DailyWeatherReport(city, country, currentTemp.intValue(), 0, minTemp.intValue(), weatherType, weatherDesc, new Date());
 
+                    // update the UI for all of the current weather information
                     updateCurrentUI(currentReport);
 
                 }catch (JSONException exception){
@@ -137,12 +150,16 @@ public class WeatherActivity extends AppCompatActivity implements GoogleApiClien
             }
         });
 
+        // add the JsonObjectRequest to the Volley request queue
         Volley.newRequestQueue(this).add(jsonObjectRequest);
     }
 
     public void downloadFiveDayWeatherData(Location location){
+        // build URL string using the daily forecast URL base
         final String fullCords = URL_COORD + location.getLatitude() + "&lon=" + location.getLongitude();
         final String url = URL_BASE_FIVEDAY + fullCords + URL_UNIT + URL_COUNT + URL_API;
+
+        // create a GET JsonObjectRequest for the weather data for the next five days
         final JsonObjectRequest jsonObjectRequest = new JsonObjectRequest(Request.Method.GET, url, null, new Response.Listener<JSONObject>() {
             @Override
             public void onResponse(JSONObject response) {
@@ -150,8 +167,9 @@ public class WeatherActivity extends AppCompatActivity implements GoogleApiClien
 
                 try{
                     JSONArray list = response.getJSONArray("list");
-                    // for loop to get weather data for next 5 days
+                    // for loop to get weather data for next 5 days (starting at 1 to skip the current day since we already got more accurate current information from downloadCurrentWeatherData)
                     for(int i = 1; i < 6; i++){
+                        // get all relevant weather information from JSON objects created from the web request
                         JSONObject obj = list.getJSONObject(i);
                         Date date = new Date((long)Integer.parseInt(obj.getString("dt"))*1000);
                         Log.v("DATE2", date.toString());
@@ -160,15 +178,15 @@ public class WeatherActivity extends AppCompatActivity implements GoogleApiClien
                         Double maxTemp = temps.getDouble("max");
                         Double minTemp = temps.getDouble("min");
 
-                        //Log.v("TEMP", maxTemp.toString());
-
                         JSONArray weatherArr = obj.getJSONArray("weather");
                         JSONObject weather = weatherArr.getJSONObject(0);
                         String weatherType = weather.getString("main");
                         String weatherDesc = weather.getString("description");
 
+                        // create a new DailyWeatherReport for each day...
                         DailyWeatherReport report = new DailyWeatherReport(null, null, 0, maxTemp.intValue(), minTemp.intValue(), weatherType, weatherDesc, date);
 
+                        // ... and add it to an ArrayList of DailyWeatherReports to be used in the RecyclerView
                         weatherReportArrayList.add(report);
                     }
 
@@ -176,6 +194,7 @@ public class WeatherActivity extends AppCompatActivity implements GoogleApiClien
                     Log.v("JSON", exception.toString());
                 }
 
+                // notify the adapter that the data set has changed since we just got new information from a web request
                 adapter.notifyDataSetChanged();
 
             }
@@ -193,7 +212,7 @@ public class WeatherActivity extends AppCompatActivity implements GoogleApiClien
 
     public void updateCurrentUI(DailyWeatherReport report){
         Log.v("FUN", report.getWeather());
-        Log.v("FUN", DailyWeatherReport.WEATHER_TYPE_RAIN);
+        // update images based on weather type
         switch (report.getWeather()){
             case DailyWeatherReport.WEATHER_TYPE_CLOUDS:
                 weatherIcon.setImageDrawable(getResources().getDrawable(R.drawable.cloudy));
@@ -218,14 +237,23 @@ public class WeatherActivity extends AppCompatActivity implements GoogleApiClien
                 weatherIconMini.setImageDrawable(getResources().getDrawable(R.drawable.sunny));
                 Log.v("FUN", "clear called");
         }
+
+        // set all views to contain the proper information
         currentTemp.setText(Integer.toString(report.getCurrentTemp()) + "°");
         lowTemp.setText(Integer.toString(report.getMinTemp()) + "°");
         cityCountry.setText(report.getCityName() + ", " + report.getCountry());
         weatherType.setText(report.getWeatherDesc());
         weatherDate.setText("Today, " + report.getFormattedDate());
+
+        currentTemp.setVisibility(View.VISIBLE);
+        lowTemp.setVisibility(View.VISIBLE);
+        cityCountry.setVisibility(View.VISIBLE);
+        weatherType.setVisibility(View.VISIBLE);
+        weatherIcon.setVisibility(View.VISIBLE);
     }
 
     @Override
+    // called when GoogleApiClient has connected to Google services
     public void onConnected(@Nullable Bundle bundle) {
         if(ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED){
             ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.ACCESS_FINE_LOCATION}, PERMISSION_LOCATION);
@@ -235,6 +263,7 @@ public class WeatherActivity extends AppCompatActivity implements GoogleApiClien
     }
 
     @Override
+    // called when GoogleApiClient has failed to connect to Google services
     public void onConnectionFailed(@NonNull ConnectionResult connectionResult) {
 
     }
@@ -245,6 +274,7 @@ public class WeatherActivity extends AppCompatActivity implements GoogleApiClien
     }
 
     @Override
+    // called when user has changed location
     public void onLocationChanged(Location location) {
         downloadCurrentWeatherData(location);
         downloadFiveDayWeatherData(location);
@@ -275,77 +305,4 @@ public class WeatherActivity extends AppCompatActivity implements GoogleApiClien
         }
     }
 
-    public class WeatherAdapter extends RecyclerView.Adapter<WeatherReportViewHolder> {
-        private ArrayList<DailyWeatherReport> dailyWeatherReports;
-
-        public WeatherAdapter(ArrayList<DailyWeatherReport> dailyWeatherReports) {
-            this.dailyWeatherReports = dailyWeatherReports;
-        }
-
-        @Override
-        public void onBindViewHolder(WeatherReportViewHolder holder, int position) {
-            DailyWeatherReport report = dailyWeatherReports.get(position);
-            holder.updateUI(report);
-        }
-
-        @Override
-        public int getItemCount() {
-            return dailyWeatherReports.size();
-        }
-
-        @Override
-        public WeatherReportViewHolder onCreateViewHolder(ViewGroup parent, int viewType) {
-            View card = LayoutInflater.from(parent.getContext()).inflate(R.layout.card_weather, parent, false);
-            return new WeatherReportViewHolder(card);
-        }
-    }
-
-    public class WeatherReportViewHolder extends RecyclerView.ViewHolder{
-
-        private ImageView lweatherIcon;
-        private TextView lweatherDate;
-        private TextView lweatherDescription;
-        private TextView ltempHigh;
-        private TextView ltempLow;
-
-        public WeatherReportViewHolder(View itemView) {
-            super(itemView);
-
-            lweatherIcon = (ImageView)itemView.findViewById(R.id.list_weather_icon);
-            lweatherDate = (TextView)itemView.findViewById(R.id.list_weather_day);
-            lweatherDescription = (TextView)itemView.findViewById(R.id.list_weather_desc);
-            ltempHigh = (TextView)itemView.findViewById(R.id.list_temp_max);
-            ltempLow = (TextView)itemView.findViewById(R.id.list_temp_min);
-
-        }
-
-        public void updateUI(DailyWeatherReport report){
-
-            lweatherDate.setText(report.getFormattedDate());
-            lweatherDescription.setText(report.getWeather());
-            ltempHigh.setText(Integer.toString(report.getMaxTemp()) + "°");
-            ltempLow.setText(Integer.toString(report.getMinTemp()) + "°");
-
-            switch (report.getWeather()){
-                case DailyWeatherReport.WEATHER_TYPE_CLOUDS:
-                    lweatherIcon.setImageDrawable(getResources().getDrawable(R.drawable.cloudy_mini));
-                    Log.v("FUN", "clouds called");
-                    break;
-
-                case DailyWeatherReport.WEATHER_TYPE_RAIN:
-                    lweatherIcon.setImageDrawable(getResources().getDrawable(R.drawable.rainy_mini));
-                    Log.v("FUN", "rain called");
-                    break;
-
-                case DailyWeatherReport.WEATHER_TYPE_SNOW:
-                    lweatherIcon.setImageDrawable(getResources().getDrawable(R.drawable.snow_mini));
-                    Log.v("FUN", "snow called");
-                    break;
-
-                default:
-                    lweatherIcon.setImageDrawable(getResources().getDrawable(R.drawable.sunny_mini));
-                    Log.v("FUN", "clear called");
-            }
-        }
-    }
 }
